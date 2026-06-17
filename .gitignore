@@ -1,0 +1,46 @@
+
+# Các thư mục chứa thư viện cài đặt và bản build sản phẩm
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# File cấu hình môi trường chứa thông tin bảo mật (QUAN TRỌNG)
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Log của npm/yarn
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Môi trường ảo của Python (Virtual Environment)
+backend/venv/
+backend/ENV/
+backend/env/
+
+# File bytecode đã biên dịch của Python (Tự sinh khi chạy server)
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# File cấu hình môi trường chứa mật khẩu MySQL, SECRET_KEY (QUAN TRỌNG)
+backend/.env
+backend/local_settings.py
+
+# Thư mục chứa file media do người dùng upload lên (Ảnh bìa, file nhạc .mp3)
+# Bạn nên giữ lại thư mục nhưng bỏ qua nội dung bên trong để tránh nặng Git
+backend/media/
+
+# Các file log và database SQLite nội bộ (nếu vô tình sinh ra)
+backend/*.log
+backend/*.sqlite3
+
+# Thư mục cấu hình của VS Code, WebStorm hoặc PyCharm
+.vscode/
+.idea/
+
+# Rác hệ điều hành Mac và Windows
+.DS_Store
+Thumbs.db
