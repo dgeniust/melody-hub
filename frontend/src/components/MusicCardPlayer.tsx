@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import {
   SkipBack,
   Play,
@@ -10,25 +10,31 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import type { Playlist, Song } from "../api/types";
-import songApi from "../api/songApi";
+import type { Song } from "../api/types";
+import { useMusic } from "../context/MusicContext";
 
 export default function MusicCardPlayer({
   userId,
 }: {
   userId?: number | null;
 }) {
-  const [playlist, setPlaylist] = useState<Playlist | null>(null);
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [loading, setLoading] = useState(userId ? true : false);
+  const {
+    playlist,
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    loading,
+    togglePlay,
+    handleNextSong,
+    handlePrevSong,
+    seek,
+    playSong,
+  } = useMusic();
+
   const [error, setError] = useState<string | null>(null);
 
   const [isPlaylistExpanded, setIsPlaylistExpanded] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const crayonColors = [
     "bg-mint-wash",
@@ -50,94 +56,13 @@ export default function MusicCardPlayer({
 
   const activeSong = currentSong || defaultSong;
 
-  const fetchPlaylistData = useCallback(async () => {
-    if (!userId) return;
-    try {
-      setLoading(true);
-      const res = songApi.getPlaylistByUserId(userId);
-      if (!res) throw new Error("Không thể tải danh sách phát");
-      const data: Playlist = await res;
-      setPlaylist(data);
-      if (data.songs_detail && data.songs_detail.length > 0) {
-        setCurrentSong(data.songs_detail[0]);
-      }
-      setLoading(false);
-    } catch (err: any) {
-      setLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    console.log("playlist data userId: ", userId);
-    if (userId) fetchPlaylistData();
-    else return;
-  }, [userId, fetchPlaylistData]);
-
-  useEffect(() => {
-    if (audioRef.current && activeSong.audio_file_url) {
-      audioRef.current.load();
-      if (isPlaying) {
-        audioRef.current
-          .play()
-          .catch((err) => console.log("Playback error:", err));
-      }
-    }
-  }, [activeSong.audio_file_url]);
-
-  const togglePlay = () => {
-    if (!audioRef.current || !activeSong.audio_file_url) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      if (audioRef.current.readyState === 0) {
-        audioRef.current.load();
-      }
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => console.log("Playback error:", err));
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
-  };
-
-  const handleLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration);
-  };
-
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || duration === 0) return;
+    if (duration === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const width = rect.width;
     const newTime = (clickX / width) * duration;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const handleNextSong = () => {
-    if (!playlist || !currentSong) return;
-    const currentIndex = playlist.songs_detail.findIndex(
-      (s) => s.id === currentSong.id,
-    );
-    const nextIndex = (currentIndex + 1) % playlist.songs_detail.length;
-    setCurrentSong(playlist.songs_detail[nextIndex]);
-    setIsPlaying(true);
-  };
-
-  const handlePrevSong = () => {
-    if (!playlist || !currentSong) return;
-    const currentIndex = playlist.songs_detail.findIndex(
-      (s) => s.id === currentSong.id,
-    );
-    const prevIndex =
-      (currentIndex - 1 + playlist.songs_detail.length) %
-      playlist.songs_detail.length;
-    setCurrentSong(playlist.songs_detail[prevIndex]);
-    setIsPlaying(true);
+    seek(newTime); // Gọi hàm tua nhạc toàn cục
   };
 
   const formatTime = (timeInSeconds: number) => {
@@ -150,21 +75,23 @@ export default function MusicCardPlayer({
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   if (loading) return null; // Ẩn thanh phát nhạc khi đang tải dữ liệu
+  const getArtistName = () => {
+    if (!currentSong) return "Hãy chọn bài hát";
 
+    // Nếu là Song đầy đủ
+    if ("artist_detail" in currentSong && currentSong.artist_detail) {
+      return currentSong.artist_detail.name;
+    }
+
+    // Nếu là SongMinimal nhưng nằm trong một Playlist/Album có sẵn thông tin
+    if (playlist && "artist_detail" in playlist) {
+      return (playlist as any).artist_detail?.name || "Nghệ sĩ";
+    }
+
+    return "Nghệ sĩ ẩn danh";
+  };
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-snow border-t-4 border-charcoal-ink px-4 py-3 md:px-8 flex flex-col gap-2 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
-      <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleNextSong}
-        preload="auto"
-      >
-        {activeSong.audio_file_url && (
-          <source src={activeSong.audio_file_url} type="audio/mpeg" />
-        )}
-      </audio>
-
       {/* ==========================================
           PLAYLIST POPUP PANEL (Mở ngược lên trên)
           ========================================== */}
@@ -190,8 +117,7 @@ export default function MusicCardPlayer({
                 <div
                   key={song.id}
                   onClick={() => {
-                    setCurrentSong(song);
-                    setIsPlaying(true);
+                    playSong(song);
                   }}
                   className={`flex items-center justify-between p-2 border-2 rounded-lpalo cursor-pointer transition-all ${
                     isSelected
@@ -212,7 +138,7 @@ export default function MusicCardPlayer({
                         {song.title}
                       </h4>
                       <p className="text-[10px] font-medium text-gray-500 truncate">
-                        {song.artist_detail.name}
+                        {getArtistName()}
                       </p>
                     </div>
                   </div>
@@ -249,7 +175,7 @@ export default function MusicCardPlayer({
               {activeSong.title}
             </h4>
             <p className="text-xs font-medium text-gray-500 truncate">
-              {activeSong.artist_detail?.name}
+              {getArtistName()}
             </p>
           </div>
           {/* Nút chức năng phụ ẩn trên mobile để gọn */}

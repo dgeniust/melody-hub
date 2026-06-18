@@ -1,22 +1,12 @@
-import {
-  Play,
-  Heart,
-  Flame,
-  Trophy,
-  Album as AlbumIcon,
-  Music,
-} from "lucide-react";
+import { Play, Heart, Flame, Trophy, Album as AlbumIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { chartApi } from "../api/songApi";
 import type { Album, SongMinimal } from "../api/types";
+import { useMusic } from "../context/MusicContext";
 
 type ChartTab = "trending" | "albums";
 
-export default function MusicCharts({
-  onPlaySong,
-}: {
-  onPlaySong?: (song: any) => void;
-}) {
+export default function MusicCharts() {
   const [chartSongs, setChartSongs] = useState<SongMinimal[] | Album[]>();
   const [activeTab, setActiveTab] = useState<ChartTab>("trending");
   const [loading, setLoading] = useState<boolean>(false);
@@ -87,6 +77,7 @@ export default function MusicCharts({
   const isAlbum = (item: SongMinimal | Album): item is Album => {
     return "songs_detail" in item;
   };
+  const { playSong, currentSong, isPlaying } = useMusic();
 
   return (
     <div className="w-full bg-snow border-2 border-charcoal-ink rounded-lpalo p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -139,6 +130,9 @@ export default function MusicCharts({
           </div>
         ) : chartSongs && chartSongs.length > 0 ? (
           chartSongs.map((item, index) => {
+            // if (isAlbum(item)) {
+            //   console.log("item: ", item.songs_detail);
+            // }
             const rank = index + 1;
             const assignedColor = crayonColors[index % crayonColors.length];
             const isLiked = likedSongs.includes(item.id);
@@ -198,7 +192,11 @@ export default function MusicCharts({
                       }}
                     />
                     <button
-                      onClick={() => onPlaySong && onPlaySong(targetPlayData)}
+                      onClick={() => {
+                        isAlbum(item)
+                          ? playSong(targetPlayData, item)
+                          : playSong(targetPlayData);
+                      }}
                       className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Play className="w-5 h-5 text-snow fill-snow" />
@@ -246,11 +244,20 @@ export default function MusicCharts({
                   </button>
 
                   <button
-                    onClick={() => onPlaySong && onPlaySong(targetPlayData)}
+                    onClick={() => {
+                      isAlbum(item)
+                        ? playSong(targetPlayData, item)
+                        : playSong(targetPlayData);
+                    }}
                     className="p-2 bg-sunbeam-yellow border-2 border-charcoal-ink rounded-lpalo active:translate-y-0.5 transition-transform shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                     title={isAlbum(item) ? "Phát Album" : "Phát nhạc"}
                   >
-                    <Play className="w-4 h-4 fill-charcoal-ink" />
+                    {`${activeTab}-${currentSong?.id}` ===
+                      `${activeTab}-${item.id}` && isPlaying ? (
+                      "Đang phát"
+                    ) : (
+                      <Play className="w-4 h-4 fill-charcoal-ink" />
+                    )}
                   </button>
                 </div>
               </div>
