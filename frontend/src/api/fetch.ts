@@ -29,7 +29,6 @@ export const fetchClient = async <T>(
     if (response.status === 401) {
       // Xử lý khi token hết hạn (ví dụ: logout)
       localStorage.removeItem("token");
-      window.location.href = "/login";
     }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Song, Artist, Genre, Album, Playlist, FavoriteSong
+from .models import Song, Artist, Genre, Album, Playlist, FavoriteSong,ArtistFollow, StreamHistory
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -12,53 +12,44 @@ class UserMinifiedSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username']
 class ArtistSerializer(serializers.ModelSerializer):
+    is_following = serializers.SerializerMethodField()
     class Meta: 
         model = Artist
-        fields =['id', 'name', 'bio', 'avatar_url', 'verified', 'followers']
-        read_only_fields = ['id']
+        fields =['id', 'name', 'bio', 'avatar_url', 'verified', 'followers', 'is_following']
+        read_only_fields = ['id', 'followers']
         extra_kwargs = {'followers' : {'default':0}}
+    def get_is_following(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if user and user.is_authenticated:
+            return ArtistFollow.objects.filter(user=user, artist=obj).exists()
+        return False
         
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
         fields = ['id', 'name', 'description']
         read_only_fields = ['id']
-        
-class AlbumSerializer(serializers.ModelSerializer):
-    artist_detail = ArtistSerializer(source = 'artist', read_only=True)
     
-    class Meta: 
-        model = Album
-        fields = ['id', 'title', 'artist', 'artist_detail', 'cover_image_url', 'release_date', 'created_at']
-        read_only_fields = ['id', 'created_at']
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    email = serializers.EmailField(required=True)
-
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'password']
-
-    def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email này đã được sử dụng.")
-        return value
-
-    def create(self, validated_data):
-        # Sử dụng create_user để mật khẩu tự động được mã hóa (hashing)
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
-        )
-        return user
-class SongSerializer(serializers.ModelSerializer):
-    artist_detail = ArtistSerializer(source ='artist_name', read_only=True)
+class SongMinimalSerializer(serializers.ModelSerializer):
     duration_formatted = serializers.SerializerMethodField()
+
     class Meta:
         model = Song
-        fields = ['id', 'title', 'artist_name', 'artist_detail', 'duration', 'duration_formatted', 'audio_file_url', 'cover_image_url', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'title', 'duration', 'duration_formatted', 'audio_file_url', 'cover_image_url', 'views_count', 'likes_count']
+
+    def get_duration_formatted(self, obj):
+        minutes = obj.duration // 60
+        seconds = obj.duration % 60
+        return f"{minutes}:{seconds:02d}"
+class SongSerializer(serializers.ModelSerializer):
+    artist_detail = ArtistSerializer(source ='artist', read_only=True)
+    duration_formatted = serializers.SerializerMethodField()
+    album_title = serializers.CharField(source='album.title', read_only=True)
+    is_liked = serializers.SerializerMethodField()
+    class Meta:
+        model = Song
+        fields = ['id', 'title', 'artist', 'artist_detail', 'album', 'album_title', 'genre', 'duration', 'duration_formatted', 'audio_file_url', 'cover_image_url', 'lyrics', 'is_exclusive', 'views_count', 'likes_count', 'created_at', 'is_liked']
+        read_only_fields = ['id', 'views_count', 'likes_count', 'created_at']
 
     # Custom validate request nếu cần (Ví dụ: thời lượng không được âm)
     def validate_duration(self, value):
@@ -69,6 +60,20 @@ class SongSerializer(serializers.ModelSerializer):
         minutes = obj.duration // 60
         seconds = obj.duration % 60
         return f"{minutes}:{seconds:02d}"
+    def get_is_liked(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if user and user.is_authenticated:
+            return FavoriteSong.objects.filter(user=user, song=obj).exists()
+        return False
+
+class AlbumSerializer(serializers.ModelSerializer):
+    artist_detail = ArtistSerializer(source = 'artist', read_only=True)
+    songs_detail = SongMinimalSerializer(source='songs', many=True, read_only=True)
+    class Meta: 
+        model = Album
+        fields = ['id', 'title', 'artist', 'artist_detail', 'songs_detail', 'cover_image_url', 'release_date', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
 
 class PlaylistSerializer(serializers.ModelSerializer):
     user_detail = UserMinifiedSerializer(source='user', read_only=True)
@@ -95,6 +100,34 @@ class FavoriteSongSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Bài hát này đã nằm trong danh sách yêu thích của bạn.")
         return attrs
 # 2. Serializer Yêu cầu Đặt lại mật khẩu (Quên mật khẩu)
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    email = serializers.EmailField(required=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email này đã được sử dụng.")
+        return value
+
+    def create(self, validated_data):
+        # Sử dụng create_user để mật khẩu tự động được mã hóa (hashing)
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
+        return user
+
+class StreamHistorySerializer(serializers.ModelSerializer):
+    song_detail = SongMinimalSerializer(source='song', read_only=True)
+    class Meta:
+        model = StreamHistory
+        fields = ['id', 'song', 'song_detail', 'listened_at', 'device', 'completed']
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

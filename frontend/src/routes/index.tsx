@@ -14,10 +14,7 @@ export const router = createBrowserRouter([
         index: true, // Đường dẫn mặc định (/)
         element: <Dashboard />,
       },
-      {
-        path: "auth", // Đường dẫn /login
-        element: <AuthPages />,
-      },
+
       {
         path: "about-us", // Đường dẫn /login
         element: <AboutUs />,
@@ -27,5 +24,9 @@ export const router = createBrowserRouter([
         element: <LicensePage />,
       },
     ],
+  },
+  {
+    path: "auth", // Đường dẫn /login
+    element: <AuthPages />,
   },
 ]);

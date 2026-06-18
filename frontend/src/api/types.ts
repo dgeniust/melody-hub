@@ -34,20 +34,26 @@ export interface Album {
   title: string;
   artist: ID; // Dùng cho write/id thuần túy
   artist_detail: Artist; // Được sinh ra từ `ArtistSerializer(source='artist')`
+  songs_detail: SongMinimal[];
   cover_image_url?: string | null;
   release_date?: string | null; // Định dạng "YYYY-MM-DD"
   created_at: string; // ISO String Datetime
 }
-
-export interface Song {
+export interface SongMinimal {
   id: ID;
   title: string;
-  artist_name: ID; // FK ID gửi lên hoặc trả về (tương ứng trường artist_name)
-  artist_detail: Artist; // Chi tiết nghệ sĩ dạng object
   duration: number; // Tính bằng giây
   duration_formatted: string; // Định dạng "MM:SS" từ SerializerMethodField
   audio_file_url: string;
   cover_image_url?: string | null;
+  views_count: number;
+  likes_count: number;
+}
+export interface Song extends SongMinimal {
+  artist_name: ID; // FK ID gửi lên hoặc trả về (tương ứng trường artist_name)
+  artist_detail: Artist; // Chi tiết nghệ sĩ dạng object
+  album: number;
+  album_title: string;
   created_at: string;
 }
 

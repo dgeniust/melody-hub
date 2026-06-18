@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import SongController,RegisterView, ForgotPasswordView, ResetPasswordConfirmView, ProfileView,ArtistController, AlbumController, PlaylistController, FavoriteSongController, LogoutView
+from .views import SongController,RegisterView, ForgotPasswordView, ResetPasswordConfirmView, ProfileView,ArtistController, AlbumController, PlaylistController, FavoriteSongController, LogoutView, TopSongsChartView, TrendingSongsChartView, TopAlbumsChartView, RecentlyPlayedView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 router = DefaultRouter()
 router.register(r'artists', ArtistController, basename='artist')
@@ -20,6 +20,10 @@ router.register(r'favorites', FavoriteSongController, basename='favorite-song')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('charts/top-songs/', TopSongsChartView.as_view(), name='chart_top_songs'),
+    path('charts/trending/', TrendingSongsChartView.as_view(), name='chart_trending'),
+    path('charts/top-albums/', TopAlbumsChartView.as_view(), name='chart_top_albums'),
+    path('me/recently-played/', RecentlyPlayedView.as_view(), name='recently_played'),
     # Đăng ký & Đăng nhập (JWT)
     path('auth/register/', RegisterView.as_view(), name='auth_register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'), # API Đăng nhập có sẵn của SimpleJWT
